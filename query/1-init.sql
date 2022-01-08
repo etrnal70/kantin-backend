@@ -1,0 +1,3 @@
+DROP DATABASE IF EXISTS kantin_db;
+CREATE DATABASE kantin_db WITH OWNER = postgres;
+CREATE SCHEMA kantin;
