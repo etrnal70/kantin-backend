@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  # Postgres
+  db:
+    image: "postgres:latest"
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      # - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - ./query:/docker-entrypoint-initdb.d/
+
+  # Main service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '${USER_PORT}:${USER_PORT}'
+      - '${SELLER_PORT}:${SELLER_PORT}'
+    depends_on:
+      - db
+    environment:
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_SALT=${DB_SALT}
+      - DB_SECRET=${DB_SECRET}
+      - USER_PORT=${USER_PORT}
+      - SELLER_PORT=${SELLER_PORT}
+    links:
+      - "postgres"
