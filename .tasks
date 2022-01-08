@@ -1,0 +1,7 @@
+# vim: set fenc=utf-8 ft=dosini:
+
+[project-run]
+command=go run *.go
+cwd=<root>
+output=terminal
+
