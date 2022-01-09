@@ -8,26 +8,37 @@ import (
 	"github.com/etrnal70/kantin-backend/pkg/storage"
 	"github.com/etrnal70/kantin-backend/pkg/storage/persistence"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func UserRegister(c *gin.Context) {
-	var data model.UserRegister
-	c.BindJSON(&data)
-
 	db, status := c.MustGet("db").(storage.Database)
 	if !status {
-    fmt.Println(status)
+		fmt.Println(status)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": status,
 		})
 		return
 	}
 
+	var data model.UserRegister
+	c.BindJSON(&data)
+
+	// Hash password before storing
+	hashedpass, hashederr := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
+	if hashederr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": fmt.Sprintf("Unable to register user : %s", hashederr),
+		})
+	}
+
+	data.Password = string(hashedpass)
+
 	res, err := persistence.UserRegister(&data, db)
 	if err != nil {
-    fmt.Println(err)
+		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": err,
+			"message": fmt.Sprintf("Unable to register user :%s", err),
 		})
 
 		return
@@ -39,7 +50,6 @@ func UserRegister(c *gin.Context) {
 		"token":   res,
 	})
 }
-
 
 func UserLogin(c *gin.Context) {
 	db, status := c.MustGet("db").(storage.Database)
@@ -53,17 +63,25 @@ func UserLogin(c *gin.Context) {
 	var data model.UserLogin
 	c.BindJSON(&data)
 
-	res, err := persistence.UserLogin(&data, db)
+	dbData, err := persistence.UserLogin(&data, db)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err,
 		})
 		return
 	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(dbData.Password), []byte(data.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Password mismatch",
+		})
+		return
+	}
+
 	// TODO: Should return token, still missing middleware
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success",
-		"token":   res,
+		"token":   dbData,
 	})
 }
 
@@ -127,7 +145,7 @@ func UserGetSellerFood(c *gin.Context) {} // Marked
 func UserGetFoodDetail(c *gin.Context) {} // Marked
 
 func UserMakeOrder(c *gin.Context) {
- //  var data model.Order
+	//  var data model.Order
 	// db, status := c.MustGet("db").(storage.Database)
 	// if !status {
 	// 	c.JSON(http.StatusInternalServerError, gin.H{

@@ -8,6 +8,7 @@ import (
 	"github.com/etrnal70/kantin-backend/pkg/storage"
 	"github.com/etrnal70/kantin-backend/pkg/storage/persistence"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func SellerRegister(c *gin.Context) {
@@ -21,6 +22,15 @@ func SellerRegister(c *gin.Context) {
 	var data model.SellerRegister
 	c.BindJSON(&data)
 
+	// Hash password before storing
+	hashedpass, hashederr := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
+	if hashederr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": fmt.Sprintf("Unable to register seller : %s", hashederr),
+		})
+	}
+
+	data.Password = string(hashedpass)
 	res, err := persistence.SellerRegister(&data, db)
 	if err != nil {
 		fmt.Println(err)
@@ -48,7 +58,7 @@ func SellerLogin(c *gin.Context) {
 	var data model.SellerLogin
 	c.BindJSON(&data)
 
-	res, err := persistence.SellerLogin(&data, db)
+	dbData, err := persistence.SellerLogin(&data, db)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err,
@@ -56,10 +66,17 @@ func SellerLogin(c *gin.Context) {
 		return
 	}
 
+	if err := bcrypt.CompareHashAndPassword([]byte(dbData.Password), []byte(data.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Password mismatch",
+		})
+		return
+	}
+
 	// TODO: Should return token, still missing middleware
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success",
-		"token":   res,
+		"token":   dbData,
 	})
 }
 
