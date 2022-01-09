@@ -3,7 +3,7 @@ CREATE TABLE kantin.user(
   id serial NOT NULL,
   firstname varchar(20),
   lastname varchar(30),
-  email varchar(30) NOT NULL UNIQUE,
+  email varchar(50) NOT NULL UNIQUE,
   password varchar(64) NOT NULL,
   createdAt timestamp NOT NULL,
   PRIMARY KEY(id)
