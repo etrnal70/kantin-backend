@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -17,24 +18,31 @@ type Database struct {
 }
 
 // TODO: Generalize usage to be able to use redis
-func InitDb() (*Database, error) {
+func InitDb(timeout time.Duration) (*Database, error) {
+	var res Database
 	dbname := os.Getenv("DB_NAME")
-	// host := os.Getenv("DB_HOST")
 	username := os.Getenv("DB_USERNAME")
 	password := os.Getenv("DB_PASSWORD")
 
-  db_url := fmt.Sprintf("host=db database=%s user=%s password=%s sslmode=disable", dbname, username, password)
-  fmt.Println(db_url)
+	db_url := fmt.Sprintf("host=db database=%s user=%s password=%s sslmode=disable", dbname, username, password)
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
 
-	dbPool, err := pgxpool.Connect(context.Background(), db_url)
-	if err != nil {
-		fmt.Printf("Unable to connect to database : %s\n", err)
-		return nil, err
+	timeoutReached := time.After(timeout)
+	for {
+		select {
+		case <-timeoutReached:
+			return nil, fmt.Errorf("Database timeout after %s", timeout)
+
+		case <-ticker.C:
+			dbPool, err := pgxpool.Connect(context.Background(), db_url)
+			if err == nil {
+				res.DbPool = dbPool
+				return &res, nil
+			}
+			fmt.Printf("Waiting for database connection...\n")
+		}
 	}
-
-	var res Database
-	res.DbPool = dbPool
-	return &res, nil
 }
 
 func (dbConn Database) Close() {
