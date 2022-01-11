@@ -11,16 +11,15 @@ import (
 
 // Seller can:
 // 1. Register
-func SellerRegister(data *model.SellerRegister, db storage.Database) (string, error) {
-	row, sqlerr := db.DbPool.Query(context.Background(),
+func SellerRegister(data *model.SellerRegister, db storage.Database) (int, error) {
+	row := db.DbPool.QueryRow(context.Background(),
 		"INSERT INTO kantin.seller(name, email, password, createdAt) VALUES($1, $2, $3, $4) RETURNING id",
 		data.Name, data.Email, data.Password, time.Now())
-	if sqlerr != nil {
-		return "", fmt.Errorf("%w", sqlerr)
-	}
 
-	var id string
-	row.Scan(&id)
+	var id int
+	if err := row.Scan(&id); err != nil {
+		return 0, nil
+	}
 
 	return id, nil
 }
@@ -35,39 +34,38 @@ func SellerLogin(data *model.SellerLogin, db storage.Database) (model.SellerLogi
 	}
 
 	var res model.SellerLogin
-	row.Scan(&res)
+	if err := row.Scan(&res); err != nil {
+		return model.SellerLogin{}, err
+	}
 
 	return res, nil
 }
 
 // 3. Get account details
 func SellerGetAccount(seller_id string, db storage.Database) (model.Seller, error) {
-	row, sqlerr := db.DbPool.Query(context.Background(),
+	row := db.DbPool.QueryRow(context.Background(),
 		"SELECT id, firstname, lastname, email FROM kantin.seller WHERE id= $1", seller_id,
 	)
-	if sqlerr != nil {
-		return model.Seller{}, fmt.Errorf("%w", sqlerr)
-	}
 
 	var res model.Seller
-	row.Scan(&res)
+	if err := row.Scan(&res); err != nil {
+		return model.Seller{}, err
+	}
 
 	return res, nil
 }
 
 // 4. Change account details
 func SellerUpdateAccount(data *model.Seller, db storage.Database) (model.Seller, error) {
-  row, sqlerr := db.DbPool.Query(context.Background(),
-    "UPDATE kantin.seller SET name = $1, email = $2, password = $3, logo = $4 WHERE id = $5 RETURNING id, name, email, password, logo", data.Name, data.Email, data.Password, data.Logo,
-  )
-  if sqlerr != nil {
-    return model.Seller{}, fmt.Errorf("%w", sqlerr)
-  }
+	row := db.DbPool.QueryRow(context.Background(),
+		"UPDATE kantin.seller SET name = $1, email = $2, password = $3, logo = $4 WHERE id = $5 RETURNING id, name, email, password, logo", data.Name, data.Email, data.Password, data.Logo,
+	)
+	var res model.Seller
+	if err := row.Scan(&res); err != nil {
+		return model.Seller{}, err
+	}
 
-  var res model.Seller
-  row.Scan(&res)
-
-  return res, nil
+	return res, nil
 }
 
 // 5. Add food

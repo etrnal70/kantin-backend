@@ -9,22 +9,21 @@ import (
 	"github.com/etrnal70/kantin-backend/pkg/storage"
 )
 
-func UserRegister(data *model.UserRegister, db storage.Database) (string, error) {
-	row, sqlerr := db.DbPool.Query(context.Background(),
+func UserRegister(data *model.UserRegister, db storage.Database) (int, error) {
+	row := db.DbPool.QueryRow(context.Background(),
 		"INSERT INTO kantin.user(firstname, lastname, email, password, createdAt) VALUES($1, $2, $3, $4, $5) RETURNING id", data.Firstname, data.Lastname, data.Email, data.Password, time.Now(),
 	)
-	if sqlerr != nil {
-		return "", fmt.Errorf("%w", sqlerr)
-	}
 
-	var id string
-	row.Scan(&id)
+	var id int
+	if err := row.Scan(&id); err != nil {
+		return 0, err
+	}
 
 	return id, nil
 }
 
 func UserLogin(data *model.UserLogin, db storage.Database) (*model.UserLogin, error) {
-	row, sqlerr := db.DbPool.Query(context.Background(),
+	rows, sqlerr := db.DbPool.Query(context.Background(),
 		"SELECT email, password FROM kantin.user WHERE email = $1", data.Email,
 	)
 	if sqlerr != nil {
@@ -32,36 +31,35 @@ func UserLogin(data *model.UserLogin, db storage.Database) (*model.UserLogin, er
 	}
 
 	var res model.UserLogin
-	row.Scan(&res)
+	for rows.Next() {
+		rows.Scan(&res.Email, &res.Password)
+	}
 
 	return &res, nil
 }
 
 func UserGetAccount(user_id string, db storage.Database) (model.User, error) {
-	row, sqlerr := db.DbPool.Query(context.Background(),
+	row := db.DbPool.QueryRow(context.Background(),
 		"SELECT id, firstname, lastname, email FROM kantin.user WHERE id = $1", user_id,
 	)
-	if sqlerr != nil {
-		return model.User{}, fmt.Errorf("%w", sqlerr)
-	}
 
 	var res model.User
-	row.Scan(&res)
+	if err := row.Scan(&res); err != nil {
+		return model.User{}, err
+	}
 
 	return res, nil
 }
 
 func UserUpdateAccount(data *model.User, db storage.Database) (model.User, error) {
-	row, sqlerr := db.DbPool.Query(context.Background(),
+	row := db.DbPool.QueryRow(context.Background(),
 		"UPDATE kantin.user SET firstname = $1, lastname = $2, email = $3, password = $4 WHERE id = $5 RETURNING id, firstname, lastname, email, password", data.Firstname, data.Lastname, data.Email, data.Password, data.ID,
 	)
 
-	if sqlerr != nil {
-		return model.User{}, fmt.Errorf("%w", sqlerr)
-	}
-
 	var res model.User
-	row.Scan(&res)
+	if err := row.Scan(&res); err != nil {
+		return model.User{}, err
+	}
 
 	return res, nil
 }
