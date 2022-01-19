@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	router "github.com/etrnal70/kantin-backend/pkg/routers"
 	"github.com/etrnal70/kantin-backend/pkg/storage"
@@ -16,7 +17,7 @@ var g errgroup.Group
 func main() {
 	// gin.SetMode(gin.ReleaseMode)
 
-	db, err := storage.InitDb()
+	db, err := storage.InitDb(15 * time.Second)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Cannot connect to database: %s", err)
 		// TODO: Should try to reconnect
