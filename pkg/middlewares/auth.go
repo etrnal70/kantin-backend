@@ -61,7 +61,6 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"status":  "Session unauthorized",
 			})
-			return
 		}
 
 		c.Next()
