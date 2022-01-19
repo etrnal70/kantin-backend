@@ -1,3 +1,3 @@
-DROP DATABASE IF EXISTS kantin_db;
-CREATE DATABASE kantin_db WITH OWNER = postgres;
+DROP SCHEMA IF EXISTS kantin;
 CREATE SCHEMA kantin;
+CREATE EXTENSION pgcrypto;

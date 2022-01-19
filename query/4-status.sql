@@ -1,7 +1,8 @@
 DROP TABLE IF EXISTS kantin.status;
 CREATE TABLE kantin.status(
   id serial NOT NULL,
-  value varchar(25)
+  value text NOT NULL,
+  PRIMARY KEY(id)
 );
 
 INSERT INTO kantin.status(value) VALUES ('WAITING_APPROVAL');

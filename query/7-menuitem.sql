@@ -1,9 +1,9 @@
 DROP TABLE IF EXISTS kantin.menuitem;
 CREATE TABLE kantin.menuitem(
-  id serial NOT NULL,
-  seller_id int,
-  name varchar(50) NOT NULL UNIQUE,
-  description varchar(120),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  seller_id uuid NOT NULL,
+  name text NOT NULL UNIQUE,
+  description text,
   category int NOT NULL,
   price int NOT NULL,
   PRIMARY KEY(id),

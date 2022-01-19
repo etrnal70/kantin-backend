@@ -1,10 +1,10 @@
 DROP TABLE IF EXISTS kantin.user;
 CREATE TABLE kantin.user(
-  id serial NOT NULL,
-  firstname varchar(20),
-  lastname varchar(30),
-  email varchar(50) NOT NULL UNIQUE,
-  password varchar(64) NOT NULL,
-  createdAt timestamp NOT NULL,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  firstname text NOT NULL,
+  lastname text,
+  email text NOT NULL UNIQUE,
+  password text NOT NULL,
+  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY(id)
 );

@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS kantin.category;
 CREATE TABLE kantin.category(
   id serial NOT NULL,
-  value varchar(15) NOT NULL,
+  value text NOT NULL,
   PRIMARY KEY(id)
 );
 
