@@ -18,7 +18,7 @@ type Database struct {
 }
 
 // TODO: Generalize usage to be able to use redis
-func InitDb(timeout time.Duration) (*Database, error) {
+func InitDb(timeout time.Duration) (Database, error) {
 	var res Database
 	dbname := os.Getenv("DB_NAME")
 	username := os.Getenv("DB_USERNAME")
@@ -32,13 +32,13 @@ func InitDb(timeout time.Duration) (*Database, error) {
 	for {
 		select {
 		case <-timeoutReached:
-			return nil, fmt.Errorf("Database timeout after %s", timeout)
+			return Database{}, fmt.Errorf("Database timeout after %s", timeout)
 
 		case <-ticker.C:
 			dbPool, err := pgxpool.Connect(context.Background(), db_url)
 			if err == nil {
 				res.DbPool = dbPool
-				return &res, nil
+				return res, nil
 			}
 			fmt.Printf("Waiting for database connection...\n")
 		}
