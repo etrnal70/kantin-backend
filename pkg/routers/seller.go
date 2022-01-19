@@ -9,25 +9,27 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SellerRouter(db *storage.Database) http.Handler {
+func SellerRouter(db storage.Database) http.Handler {
 	r := gin.Default()
-	r.Use(middleware.DbMiddleware(db))
-	// seller := r.Group("/seller")
-	r.GET("/seller")
-	r.GET("/seller/menu")
-	r.GET("/seller/menu/:id")
-	r.GET("/category")
+	sellerHandler := new(handler.SellerHandler)
+	sellerHandler.Conn = db
 
-	r.POST("/seller/register", handler.SellerRegister)
-	r.POST("/seller/login", handler.SellerLogin)
-	r.GET("/seller/:seller_id", handler.SellerGetAccount)
-	r.PUT("/seller/:seller_id", handler.SellerUpdateAccount)
-	// r.POST("/seller/food", handler.SellerAddFood)
-	// r.POST("/seller/food/:food_id", handler.SellerUpdateFood)
-	// r.GET("/seller/food", handler.SellerGetFoods)
-	// r.DELETE("/seller/food/:food_id", handler.SellerDeleteFood)
-	// r.GET("/seller/order", handler.SellerGetOrders)
-	// r.PUT("/seller/order/:order_id", handler.SellerUpdateOrder)
+	r.GET("/category", sellerHandler.GetCategory)
+	r.GET("/seller", sellerHandler.GetSeller)
+	r.GET("/seller/:seller_id", sellerHandler.GetSellerFood)
+	// r.GET("/seller/:seller_id/:menu_id", sellerHandler.GetFoodDetail)
+	r.POST("/seller/register", sellerHandler.SellerRegister)
+
+	protectedSeller := r.Group("/seller", middleware.AuthMiddleware())
+	protectedSeller.POST("/seller/login", sellerHandler.SellerLogin)
+	protectedSeller.GET("/seller/:seller_id", sellerHandler.SellerGetAccount)
+	protectedSeller.PUT("/seller/:seller_id", sellerHandler.SellerUpdateAccount)
+	protectedSeller.POST("/seller/food", sellerHandler.SellerAddFood)
+	protectedSeller.POST("/seller/food/:food_id", sellerHandler.SellerUpdateFood)
+	protectedSeller.GET("/seller/food", sellerHandler.SellerGetFoods)
+	protectedSeller.DELETE("/seller/food/:food_id", sellerHandler.SellerDeleteFood)
+	protectedSeller.GET("/seller/order", sellerHandler.SellerGetOrders)
+	protectedSeller.PUT("/seller/order/:order_id", sellerHandler.SellerUpdateOrder)
 
 	return r
 }

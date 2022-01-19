@@ -9,18 +9,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func UserRouter(db *storage.Database) http.Handler {
+func UserRouter(db storage.Database) http.Handler {
 	r := gin.Default()
-	r.Use(middleware.DbMiddleware(db))
-	// user := r.Group("/user")
-	r.POST("/user/register", handler.UserRegister)
-	r.POST("/user/login", handler.UserLogin)
-	r.GET("/user/:user_id", handler.UserGetAccount)
-	r.PUT("/user/:user_id", handler.UserUpdateAccount)
-	r.GET("/user/:user_id/order", handler.UserGetOrders)
-	r.POST("/user/:user_id/order", handler.UserMakeOrder)
-	r.GET("/user/:user_id/order/:order_id", handler.UserGetOrderStatus)
-	r.POST("/user/:user_id/order/:order_id", handler.UserRequestOrderCancel)
+  userHandler := new(handler.UserHandler)
+  userHandler.Conn = db
+	r.POST("/user/register", userHandler.UserRegister)
+
+  protectedUser := r.Group("/user", middleware.AuthMiddleware())
+	protectedUser.POST("/user/login", userHandler.UserLogin)
+	protectedUser.GET("/user/:user_id", userHandler.UserGetAccount)
+	protectedUser.PUT("/user/:user_id", userHandler.UserUpdateAccount)
+	protectedUser.GET("/user/:user_id/order", userHandler.UserGetOrders)
+	protectedUser.POST("/user/:user_id/order", userHandler.UserMakeOrder)
+	protectedUser.GET("/user/:user_id/order/:order_id", userHandler.UserGetOrderStatus)
+	protectedUser.POST("/user/:user_id/order/:order_id", userHandler.UserRequestOrderCancel)
 
 	return r
 }
