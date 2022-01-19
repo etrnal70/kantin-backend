@@ -1,27 +1,30 @@
-version: '3'
+version: "3"
 
 services:
   # Postgres
   db:
+    container_name: kantin_db
     image: "postgres:latest"
-    restart: unless-stopped
+    restart: always
     ports:
-      - '5432:5432'
+      - "5432:5432"
     environment:
       - POSTGRES_USER=${DB_USERNAME}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
-      # - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_DB=${DB_NAME}
     volumes:
       - ./query:/docker-entrypoint-initdb.d/
+      - ./data/pgdata:/var/lib/postgresql/data
 
   # Main service
   app:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: kantin_backend
     ports:
-      - '${USER_PORT}:${USER_PORT}'
-      - '${SELLER_PORT}:${SELLER_PORT}'
+      - "${USER_PORT}:${USER_PORT}"
+      - "${SELLER_PORT}:${SELLER_PORT}"
     depends_on:
       - db
     environment:
@@ -30,8 +33,8 @@ services:
       - DB_PORT=${DB_PORT}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - DB_SALT=${DB_SALT}
       - DB_SECRET=${DB_SECRET}
+      - TOKEN_SECRET=${TOKEN_SECRET}
       - USER_PORT=${USER_PORT}
       - SELLER_PORT=${SELLER_PORT}
     links:
