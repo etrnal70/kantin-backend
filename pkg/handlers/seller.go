@@ -5,33 +5,24 @@ import (
 	"net/http"
 
 	"github.com/etrnal70/kantin-backend/pkg/constants/model"
+	middleware "github.com/etrnal70/kantin-backend/pkg/middlewares"
 	"github.com/etrnal70/kantin-backend/pkg/storage"
 	"github.com/etrnal70/kantin-backend/pkg/storage/persistence"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/gofrs/uuid"
 )
 
-func SellerRegister(c *gin.Context) {
-	db, status := c.MustGet("db").(storage.Database)
-	if !status {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": status,
-		})
-	}
+type SellerHandler struct {
+	Conn storage.Database
+}
 
+func (db *SellerHandler) SellerRegister(c *gin.Context) {
 	var data model.SellerRegister
-	c.BindJSON(&data)
-
-	// Hash password before storing
-	hashedpass, hashederr := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
-	if hashederr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": fmt.Sprintf("Unable to register seller : %s", hashederr),
-		})
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
 	}
 
-	data.Password = string(hashedpass)
-	res, err := persistence.SellerRegister(&data, db)
+	res, err := persistence.SellerRegister(&data, db.Conn)
 	if err != nil {
 		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -40,25 +31,25 @@ func SellerRegister(c *gin.Context) {
 		return
 	}
 
-	// TODO: Should return token, stil missing middleware
+	token, err := middleware.GenerateToken(res.ID.String())
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	c.Header("Authorization", fmt.Sprintf("Bearer %s", token))
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success",
 		"token":   res,
 	})
 }
 
-func SellerLogin(c *gin.Context) {
-	db, status := c.MustGet("db").(storage.Database)
-	if !status {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": status,
-		})
+func (db *SellerHandler) SellerLogin(c *gin.Context) {
+	var data model.SellerLogin
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
 	}
 
-	var data model.SellerLogin
-	c.BindJSON(&data)
-
-	dbData, err := persistence.SellerLogin(&data, db)
+	id, err := persistence.SellerLogin(&data, db.Conn)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err,
@@ -66,30 +57,19 @@ func SellerLogin(c *gin.Context) {
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(dbData.Password), []byte(data.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Password mismatch",
-		})
-		return
+	token, err := middleware.GenerateToken(id.String())
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
 	}
-
-	// TODO: Should return token, still missing middleware
+	c.Header("Authorization", fmt.Sprintf("Bearer %s", token))
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success",
-		"token":   dbData,
 	})
 }
 
-func SellerGetAccount(c *gin.Context) {
-	db, status := c.MustGet("db").(storage.Database)
-	if !status {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": status,
-		})
-	}
-
-	seller_id := c.Param("seller_id")
-	res, err := persistence.SellerGetAccount(seller_id, db)
+func (db *SellerHandler) SellerGetAccount(c *gin.Context) {
+	seller_id, _ := uuid.FromString(c.Param("user_id"))
+	res, err := persistence.SellerGetAccount(seller_id, db.Conn)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err,
@@ -105,18 +85,14 @@ func SellerGetAccount(c *gin.Context) {
 	})
 }
 
-func SellerUpdateAccount(c *gin.Context) {
-	db, status := c.MustGet("db").(storage.Database)
-	if !status {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": status,
-		})
-	}
-
+func (db *SellerHandler) SellerUpdateAccount(c *gin.Context) {
+	seller_id, _ := uuid.FromString(c.Param("user_id"))
 	var data model.Seller
-	c.BindJSON(&data)
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+	}
 
-	res, err := persistence.SellerUpdateAccount(&data, db)
+	res, err := persistence.SellerUpdateAccount(seller_id, &data, db.Conn)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": err,
@@ -132,56 +108,69 @@ func SellerUpdateAccount(c *gin.Context) {
 	})
 }
 
-// func SellerAddFood(c *gin.Context) {
-// 	db, status := c.MustGet("db").(storage.Database)
-// 	if !status {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"message": status,
-// 		})
-// 	}
-// }
+func (db *SellerHandler) GetCategory(c *gin.Context) {
+	res, err := persistence.GetCategory(db.Conn)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"message": err,
+		})
+	}
 
-// func SellerUpdateFood(c *gin.Context) {
-// 	db, status := c.MustGet("db").(storage.Database)
-// 	if !status {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"message": status,
-// 		})
-// 	}
-// }
+	c.JSON(http.StatusOK, gin.H{
+		"category": res,
+	})
+} // Marked
+func (db *SellerHandler) GetSeller(c *gin.Context) {
+	res, err := persistence.GetSeller(db.Conn)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"message": err,
+		})
+	}
 
-// func SellerGetFoods(c *gin.Context) {
-// 	db, status := c.MustGet("db").(storage.Database)
-// 	if !status {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"message": status,
-// 		})
-// 	}
-// }
+	c.JSON(http.StatusOK, gin.H{
+		"seller": res,
+	})
+} // Marked
+func (db *SellerHandler) GetSellerFood(c *gin.Context) {
+	seller_id, _ := uuid.FromString(c.Param("seller_id"))
+	res, err := persistence.GetSellerFood(seller_id, db.Conn)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"message": err,
+		})
+	}
 
-// func SellerDeleteFood(c *gin.Context) {
-// 	db, status := c.MustGet("db").(storage.Database)
-// 	if !status {
+	c.JSON(http.StatusOK, gin.H{
+		"seller_id": seller_id,
+		"foods":     res,
+	})
+} // Marked
+// func (db *SellerHandler) GetFoodDetail(c *gin.Context) {
+// 	seller_id, _ := uuid.FromString(c.Param("seller_id"))
+// 	food_id, _ := uuid.FromString(c.Param("food_id"))
+// 	res, err := persistence.GetFoodDetail(seller_id, food_id, db.Conn)
+// 	if err != nil {
 // 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"message": status,
+// 			"message": err,
 // 		})
+//
+// 		return
 // 	}
-// }
+//
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"menuitem": res,
+// 	})
+// } // Marked
 
-// func SellerGetOrders(c *gin.Context) {
-// 	db, status := c.MustGet("db").(storage.Database)
-// 	if !status {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"message": status,
-// 		})
-// 	}
-// }
+func (db *SellerHandler) SellerAddFood(c *gin.Context) {}
 
-// func SellerUpdateOrder(c *gin.Context) {
-// 	db, status := c.MustGet("db").(storage.Database)
-// 	if !status {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"message": status,
-// 		})
-// 	}
-// }
+func (db *SellerHandler) SellerUpdateFood(c *gin.Context) {}
+
+func (db *SellerHandler) SellerGetFoods(c *gin.Context) {}
+
+func (db *SellerHandler) SellerDeleteFood(c *gin.Context) {}
+
+func (db *SellerHandler) SellerGetOrders(c *gin.Context) {}
+
+func (db *SellerHandler) SellerUpdateOrder(c *gin.Context) {}

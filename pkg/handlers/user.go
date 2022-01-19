@@ -5,102 +5,71 @@ import (
 	"net/http"
 
 	"github.com/etrnal70/kantin-backend/pkg/constants/model"
+	middleware "github.com/etrnal70/kantin-backend/pkg/middlewares"
 	"github.com/etrnal70/kantin-backend/pkg/storage"
 	"github.com/etrnal70/kantin-backend/pkg/storage/persistence"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/gofrs/uuid"
 )
 
-func UserRegister(c *gin.Context) {
-	db, status := c.MustGet("db").(storage.Database)
-	if !status {
-		fmt.Println(status)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": status,
-		})
-		return
-	}
+type UserHandler struct {
+	Conn storage.Database
+}
 
+func (db *UserHandler) UserRegister(c *gin.Context) {
 	var data model.UserRegister
-	c.BindJSON(&data)
-
-	// Hash password before storing
-	hashedpass, hashederr := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
-	if hashederr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": fmt.Sprintf("Unable to register user : %s", hashederr),
-		})
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
 	}
 
-	data.Password = string(hashedpass)
-
-	res, err := persistence.UserRegister(&data, db)
+	res, err := persistence.UserRegister(&data, db.Conn)
 	if err != nil {
-		fmt.Println(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"message": fmt.Sprintf("Unable to register user :%s", err),
 		})
-
-		return
 	}
 
-	// TODO: Should return token, still missing middleware
+	token, err := middleware.GenerateToken(res.ID.String())
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}
+	c.Header("Authorization", fmt.Sprintf("Bearer %s", token))
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success",
-		"token":   res,
+		"data":    res,
 	})
 }
 
-func UserLogin(c *gin.Context) {
-	db, status := c.MustGet("db").(storage.Database)
-	if status {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": status,
-		})
-		return
-	}
-
+func (db *UserHandler) UserLogin(c *gin.Context) {
 	var data model.UserLogin
-	c.BindJSON(&data)
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+	}
 
-	dbData, err := persistence.UserLogin(&data, db)
+	id, err := persistence.UserLogin(&data, db.Conn)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"message": err,
 		})
-		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(dbData.Password), []byte(data.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Password mismatch",
-		})
-		return
+	token, err := middleware.GenerateToken(id.String())
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
 	}
-
-	// TODO: Should return token, still missing middleware
+	c.Header("Authorization", fmt.Sprintf("Bearer %s", token))
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success",
-		"token":   dbData,
 	})
 }
 
-func UserGetAccount(c *gin.Context) {
-	db, status := c.MustGet("db").(storage.Database)
-	if !status {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": status,
-		})
-		return
-	}
-
-	user_id := c.Param("user_id")
-	res, err := persistence.UserGetAccount(user_id, db)
+func (db *UserHandler) UserGetAccount(c *gin.Context) {
+	user_id, _ := uuid.FromString(c.Param("user_id"))
+	res, err := persistence.UserGetAccount(user_id, db.Conn)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"message": err,
 		})
-		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -111,24 +80,20 @@ func UserGetAccount(c *gin.Context) {
 	})
 }
 
-func UserUpdateAccount(c *gin.Context) {
-	db, status := c.MustGet("db").(storage.Database)
-	if !status {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": status,
-		})
-		return
-	}
-
+func (db *UserHandler) UserUpdateAccount(c *gin.Context) {
+	user_id, _ := uuid.FromString(c.Param("user_id"))
 	var data model.User
-	c.BindJSON(&data)
+	if err := c.ShouldBindJSON(&data); err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+	}
 
-	res, err := persistence.UserUpdateAccount(&data, db)
+	// TODO: Check if password change
+
+	res, err := persistence.UserUpdateAccount(user_id, &data, db.Conn)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"message": err,
 		})
-		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -139,12 +104,7 @@ func UserUpdateAccount(c *gin.Context) {
 	})
 }
 
-func UserGetCategory(c *gin.Context)   {} // Marked
-func UserGetSeller(c *gin.Context)     {} // Marked
-func UserGetSellerFood(c *gin.Context) {} // Marked
-func UserGetFoodDetail(c *gin.Context) {} // Marked
-
-func UserMakeOrder(c *gin.Context) {
+func (db *UserHandler) UserMakeOrder(c *gin.Context) {
 	//  var data model.Order
 	// db, status := c.MustGet("db").(storage.Database)
 	// if !status {
@@ -155,7 +115,7 @@ func UserMakeOrder(c *gin.Context) {
 	// }
 }
 
-func UserGetOrderStatus(c *gin.Context) {
+func (db *UserHandler) UserGetOrderStatus(c *gin.Context) {
 	// db, status := c.MustGet("db").(storage.Database)
 	// if !status {
 	// 	c.JSON(http.StatusInternalServerError, gin.H{
@@ -165,7 +125,7 @@ func UserGetOrderStatus(c *gin.Context) {
 	// }
 }
 
-func UserRequestOrderCancel(c *gin.Context) {
+func (db *UserHandler) UserRequestOrderCancel(c *gin.Context) {
 	// db, status := c.MustGet("db").(storage.Database)
 	// if !status {
 	// 	c.JSON(http.StatusInternalServerError, gin.H{
@@ -175,7 +135,7 @@ func UserRequestOrderCancel(c *gin.Context) {
 	// }
 }
 
-func UserGetOrders(c *gin.Context) {
+func (db *UserHandler) UserGetOrders(c *gin.Context) {
 	// db, status := c.MustGet("db").(storage.Database)
 	// if !status {
 	// 	c.JSON(http.StatusInternalServerError, gin.H{
