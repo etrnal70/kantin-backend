@@ -1,12 +1,15 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/gofrs/uuid"
+)
 
 type Order struct {
-	ID        uint64    `json:"id"`
-	UserID    uint64    `json:"user_id"`
-	SellerID  uint64    `json:"seller_id"`
-	Orderlist []int64   `json:"orderlist"`
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"user_id"`
+	SellerID  uuid.UUID `json:"seller_id"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"createdAt"`
 }

@@ -1,14 +1,21 @@
 package model
 
+import (
+	"github.com/gofrs/uuid"
+	"github.com/jackc/pgtype"
+)
+
 type ImagePath struct {
-	ID   uint   `json:"id"`
-	Path string `json:"image_path"`
+	ID   uuid.UUID `json:"id"`
+	Path string    `json:"image_path"`
 }
 
 type MenuItem struct {
-	ID          uint64    `json:"id"`
-	Image       ImagePath `json:"image"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Price       int       `json:"price"`
+	ID          uuid.UUID   `json:"id"`
+	Seller_ID   uuid.UUID   `json:"seller_id"`
+	Image       ImagePath   `json:"image"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	Category    int         `json:"category"`
+	Price       int         `json:"price"`
 }

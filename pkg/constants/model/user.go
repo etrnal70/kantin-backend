@@ -1,11 +1,16 @@
 package model
 
+import (
+	"github.com/gofrs/uuid"
+	"github.com/jackc/pgtype"
+)
+
 type User struct {
-	ID        uint64 `json:"id"`
-	Firstname string `json:"firstname"`
-	Lastname  string `json:"lastname"`
-	Email     string `json:"email"`
-  Password  string `json:"password"`
+	ID        uuid.UUID   `json:"id"`
+	Firstname string      `json:"firstname"`
+	Lastname  pgtype.Text `json:"lastname"`
+	Email     string      `json:"email"`
+	Password  string      `json:"password"`
 }
 
 type UserLogin struct {
@@ -14,8 +19,8 @@ type UserLogin struct {
 }
 
 type UserRegister struct {
-	Firstname string `json:"firstname"`
-	Lastname  string `json:"lastname"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
+	Firstname string      `json:"firstname"`
+	Lastname  pgtype.Text `json:"lastname"`
+	Email     string      `json:"email"`
+	Password  string      `json:"password"`
 }
